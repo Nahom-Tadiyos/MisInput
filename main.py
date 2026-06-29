@@ -35,6 +35,12 @@ async def main():
         "please contact your local system administrator immediately"
     ]
 
+    keyboard_rows = [
+        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+        ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+        ["z", "x", "c", "v", "b", "n", "m"]
+    ]
+
     current_target = ""
     player_input = ""
     score = 0
@@ -62,6 +68,12 @@ async def main():
     slider_value = 0.5
     slider_dragging = False
     slider_bounds = {"x": 50, "y": 620, "w": 200, "h": 20}
+
+    sfx_active = True
+    sfx_bounds = {"x": 50, "y": 665, "w": 20, "h": 20}
+
+    music_active = True
+    music_bounds = {"x": 160, "y": 665, "w": 20, "h": 20}
 
     while not WindowShouldClose():
         delta_time = GetFrameTime()
@@ -92,8 +104,12 @@ async def main():
                 floating_texts.remove(text_mode)
 
         if current_state == STATE_MENU:
-            if not IsSoundPlaying(menu_sound):
-                PlaySound(menu_sound)
+            if music_active:
+                if not IsSoundPlaying(menu_sound):
+                    PlaySound(menu_sound)
+            else:
+                if IsSoundPlaying(menu_sound):
+                    StopSound(menu_sound)
                 
             if IsKeyPressed(KEY_ENTER):
                 StopSound(menu_sound)
@@ -115,6 +131,16 @@ async def main():
                 if (mouse_pos.x >= slider_bounds['x'] and mouse_pos.x <= slider_bounds["x"] + slider_bounds['w'] and 
                     mouse_pos.y >= slider_bounds['y'] and mouse_pos.y <= slider_bounds['y'] + slider_bounds["h"]):
                     slider_dragging = True
+
+                if (mouse_pos.x >= sfx_bounds["x"] and mouse_pos.x <= sfx_bounds["x"] + sfx_bounds['w'] 
+                    and mouse_pos.y >= sfx_bounds['y'] and mouse_pos.y <= sfx_bounds['y'] + sfx_bounds["h"]):
+                    sfx_active = not sfx_active
+
+                if (mouse_pos.x >= music_bounds['x'] and mouse_pos.x <= music_bounds["x"] + music_bounds['w'] and 
+                    mouse_pos.y >= music_bounds['y'] and mouse_pos.y <= music_bounds['y'] + music_bounds["h"]):
+                    music_active = not music_active
+                    if not music_active:
+                        StopSound(menu_sound)
             
             if IsMouseButtonReleased(MOUSE_BUTTON_LEFT):
                 slider_dragging = False
@@ -126,9 +152,12 @@ async def main():
                 SetMasterVolume(slider_value)
                 
         elif current_state == STATE_PLAYING:
-            if timer_active:
+            if timer_active and music_active:
                 if not IsSoundPlaying(game_sound):
                     PlaySound(game_sound)
+            elif not music_active:
+                if IsSoundPlaying(game_sound):
+                    StopSound(game_sound)
 
             if timer_active:
                 game_timer -= delta_time
@@ -148,7 +177,8 @@ async def main():
                         char_pressed = mutations[char_pressed]
 
                     player_input += char_pressed
-                    PlaySound(click_sound)
+                    if sfx_active:
+                        PlaySound(click_sound)
                     
                     current_idx = len(player_input) - 1
                     if current_idx < len(current_target) and char_pressed == current_target[current_idx]:
@@ -177,6 +207,9 @@ async def main():
                 game_timer += 5.0
 
                 floating_texts.append({"text": "+5s", "x": 980, "y": 60, "alpha": 1.0})
+
+                if sfx_active:
+                    pass
 
                 if len(available_keys) >= 2:
                     k1 = available_keys.pop(random.randint(0, len(available_keys) - 1))
@@ -217,10 +250,20 @@ async def main():
         rlTranslatef(dx, dy, 0)
 
         if current_state == STATE_MENU:
+            if music_active:
+                if not IsSoundPlaying(menu_sound):
+                    PlaySound(menu_sound)
+            else:
+                if IsSoundPlaying(menu_sound):
+                    StopSound(menu_sound)            
             DrawText(b"MISINPUT: WHO MOVED MY KEYS?", 260, 220, 50, MAROON)
             DrawText(b"Your layout will slowly corrupt itself every time you clear a sentence.", 280, 310, 20, DARKGRAY)
             DrawText(b"You have 60 seconds to clear as many targets as possible.", 360, 350, 20, DARKGRAY)
             DrawText(b"PRESS [ ENTER ] TO INITIALIZE INTERFACE", 370, 500, 24, BLACK)
+
+            author_text = b"Made by: Nahom Tadiyos - 06/2026"
+            author_width = MeasureText(author_text, 18)
+            DrawText(author_text, (SCREEN_WIDTH - author_width) // 2, 550, 18, DARKGRAY)
 
             DrawRectangle(slider_bounds["x"], slider_bounds["y"], slider_bounds["w"], slider_bounds["h"], LIGHTGRAY)
             DrawRectangleLines(slider_bounds["x"], slider_bounds["y"], slider_bounds["w"], slider_bounds["h"], DARKGRAY)
@@ -230,6 +273,31 @@ async def main():
 
             volume_text = f"VOLUME: {int(slider_value * 100)}%".encode('utf-8')
             DrawText(volume_text, slider_bounds["x"], slider_bounds["y"] - 25, 16, DARKGRAY)
+
+            sfx_label = b"SFX: "
+            DrawText(sfx_label, sfx_bounds["x"], sfx_bounds["y"] - 22, 16, DARKGRAY)
+
+            DrawRectangle(sfx_bounds["x"], sfx_bounds["y"], sfx_bounds["w"], sfx_bounds["h"], LIGHTGRAY)
+            DrawRectangleLines(sfx_bounds["x"], sfx_bounds["y"], sfx_bounds["w"], sfx_bounds["h"], DARKGRAY)
+
+            if sfx_active:
+                DrawRectangle(sfx_bounds["x"] + 4, sfx_bounds["y"] + 4, sfx_bounds["w"] - 8, sfx_bounds["h"] - 8, MAROON)
+                DrawText(b"YES", sfx_bounds["x"] + sfx_bounds["w"] + 10, sfx_bounds["y"] + 2, 16, DARKGRAY)
+            else:
+                DrawText(b"NO", sfx_bounds["x"] + sfx_bounds["w"] + 10, sfx_bounds["y"] + 2, 16, MAROON)    
+
+            music_label = b"MUSIC: "
+            DrawText(music_label, music_bounds["x"], music_bounds["y"] - 22, 16, DARKGRAY)
+
+            DrawRectangle(music_bounds["x"], music_bounds["y"], music_bounds["w"], music_bounds["h"], LIGHTGRAY)
+            DrawRectangleLines(music_bounds["x"], music_bounds["y"], music_bounds["w"], music_bounds["h"], DARKGRAY)
+
+            if music_active:
+                DrawRectangle(music_bounds["x"] + 4, music_bounds["y"] + 4, music_bounds["w"] - 8, music_bounds["h"] - 8, MAROON)
+                DrawText(b"ON", music_bounds["x"] + music_bounds["w"] + 10, music_bounds["y"] + 2, 16, DARKGRAY)
+            else:
+                DrawText(b"OFF", music_bounds["x"] + music_bounds["w"] + 10, music_bounds["y"] + 2, 16, MAROON)
+
 
         elif current_state == STATE_PLAYING:
             score_text = f"SCORE: {score}".encode('utf-8')
@@ -261,14 +329,49 @@ async def main():
                 cursor_offset = 150 + (len(player_input) * 15)
                 DrawRectangle(cursor_offset, 380, 3, 26, DARKGRAY)
 
+            kb_start_y = 430
+            kb_key_size = 35
+            kb_gap = 6
+
+            for row_idx, row in enumerate(keyboard_rows):
+                row_offset_x = row_idx * 15
+                row_start_x = 425 + row_offset_x
+
+                for key_idx, original_char in enumerate(row):
+                    key_x = row_start_x + (key_idx * (kb_key_size + kb_gap))
+                    key_y = kb_start_y + (row_idx * (kb_key_size + kb_gap))
+
+                    display_char = original_char
+                    is_mutated = False
+
+                    if original_char in mutations:
+                        display_char = mutations[original_char]
+                        is_mutated = True
+
+                    raylib_keycode = ord(original_char.upper())
+                    is_pressed = IsKeyDown(raylib_keycode)
+
+                    if is_pressed:
+                        DrawRectangle(key_x, key_y, kb_key_size, kb_key_size, LIME)
+                        DrawRectangleLines(key_x, key_y, kb_key_size, kb_key_size, GREEN)
+                        DrawText(display_char.upper().encode('utf-8'), key_x + 12, key_y + 10, 16, BLACK)
+                    elif is_mutated:
+                        DrawRectangle(key_x, key_y, kb_key_size, kb_key_size, MAROON)
+                        DrawRectangleLines(key_x, key_y, kb_key_size, kb_key_size, BLACK)
+                        DrawText(display_char.upper().encode('utf-8'), key_x + 12, key_y + 10, 16, RAYWHITE)
+                    else:
+                        DrawRectangle(key_x, key_y, kb_key_size, kb_key_size, LIGHTGRAY)
+                        DrawRectangleLines(key_x, key_y, kb_key_size, kb_key_size, DARKGRAY)
+                        DrawText(display_char.upper().encode('utf-8'), key_x + 12, key_y + 10, 16, DARKGRAY)
+
             box_color = ColorAlpha(MAROON, flash_alpha * 0.4)
 
-            DrawRectangle(150, 520, 980, 100, LIGHTGRAY)
-            DrawRectangle(150, 520, 980, 100, box_color)
-            DrawRectangleLines(150, 520, 980, 100, DARKGRAY)
+            DrawRectangle(150, 560, 980, 70, LIGHTGRAY)
+            DrawRectangle(150, 560, 980, 70, box_color)
+            DrawRectangleLines(150, 560, 980, 70, DARKGRAY)
 
             text_color = MAROON if flash_alpha > 0.1 else DARKGRAY
-            DrawText(status_message.encode('utf-8'), 180, 560, 18, text_color)
+            DrawText(status_message.encode('utf-8'), 180, 585, 18, text_color)
 
             credit_text = b"Music: Context Sensitive - [Thermal - 20XX]"
             text_width = MeasureText(credit_text, 16)
